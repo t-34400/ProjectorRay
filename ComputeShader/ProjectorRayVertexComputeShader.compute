@@ -1,0 +1,99 @@
+// ComputeShader: ComputeVertexData.compute
+
+#pragma kernel CSMain
+
+struct VertexData {
+    float3 worldPos;
+    float depth;
+    uint valid;
+};
+
+RWStructuredBuffer<VertexData> vertexBuffer;
+
+Texture2D<float> _DepthTex;
+SamplerState sampler_DepthTex;
+
+float _DepthCamNear;
+float _DepthCamFar;
+float _DepthCamAspect;
+float _DepthCamFoV;
+float4x4 _DepthCamMatrix;
+
+float _DepthContinuityThreshold;
+
+bool _DepthReversed;
+
+int _TexWidth;
+int _TexHeight;
+
+float CalculateLinearDepth(float depth)
+{
+    if (_DepthReversed)
+    {
+        return (_DepthCamNear * _DepthCamFar) / (_DepthCamNear - depth * (_DepthCamNear - _DepthCamFar));
+    }
+    else
+    {
+        return (_DepthCamNear * _DepthCamFar) / (_DepthCamFar - depth * (_DepthCamFar - _DepthCamNear));
+    }
+}
+
+[numthreads(8,8,1)]
+void CSMain(uint3 id : SV_DispatchThreadID)
+{
+    if (id.x >= _TexWidth || id.y >= _TexHeight)
+        return;
+        
+    float2 uv = (float2(id.x, id.y) + 0.5) / float2(_TexWidth, _TexHeight);
+    
+    float depth = _DepthTex.Load(int3(id.xy, 0));
+
+    bool shouldClip = (depth <= 0.001 || depth >= 0.999);
+    
+    float linearDepth = CalculateLinearDepth(depth);
+    linearDepth -= 0.001;
+    
+    float2 ndc = uv * 2.0 - 1.0;
+    
+    float4 camPos;
+    camPos.x = ndc.x * linearDepth * _DepthCamAspect * tan(_DepthCamFoV * 0.5);
+    camPos.y = ndc.y * linearDepth * tan(_DepthCamFoV * 0.5);
+    camPos.z = linearDepth;
+    camPos.w = 1.0;
+    
+    float4 worldPos4 = mul(_DepthCamMatrix, camPos);
+    float3 worldPos = worldPos4.xyz / worldPos4.w;
+    
+    uint valid = 1;
+    if (shouldClip)
+    {
+        valid = 0;
+    }
+    else
+    {
+        if (id.x < _TexWidth - 1)
+        {
+            float depthR = _DepthTex.Load(int3(id.x + 1, id.y, 0));
+            float linearDepthR = CalculateLinearDepth(depthR);
+            linearDepthR -= 0.001;
+            if (abs(linearDepth - linearDepthR) > _DepthContinuityThreshold)
+                valid = 0;
+        }
+        if (id.y < _TexHeight - 1)
+        {
+            float depthB = _DepthTex.Load(int3(id.x, id.y + 1, 0));
+            float linearDepthB = CalculateLinearDepth(depthB);
+            linearDepthB -= 0.001;
+            if (abs(linearDepth - linearDepthB) > _DepthContinuityThreshold)
+                valid = 0;
+        }
+    }
+
+    if (!_DepthReversed)
+        depth = 1 - depth;
+
+    uint index = id.y * _TexWidth + id.x;
+    vertexBuffer[index].worldPos = worldPos;
+    vertexBuffer[index].depth = depth;
+    vertexBuffer[index].valid = valid;
+}
