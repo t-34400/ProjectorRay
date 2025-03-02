@@ -2,13 +2,13 @@
 
 #pragma kernel CSMain
 
-struct VertexData {
-    float3 worldPos;
-    float depth;
-    uint valid;
+struct Vertex {
+    float3 position;
+    float2 uv;
+    float2 shaderParams;
 };
 
-RWStructuredBuffer<VertexData> vertexBuffer;
+RWStructuredBuffer<Vertex> vertexBuffer;
 
 Texture2D<float> _DepthTex;
 SamplerState sampler_DepthTex;
@@ -17,7 +17,6 @@ float _DepthCamNear;
 float _DepthCamFar;
 float _DepthCamAspect;
 float _DepthCamFoV;
-float4x4 _DepthCamMatrix;
 
 float _DepthContinuityThreshold;
 
@@ -41,7 +40,7 @@ float CalculateLinearDepth(float depth)
 [numthreads(8,8,1)]
 void CSMain(uint3 id : SV_DispatchThreadID)
 {
-    if (id.x >= _TexWidth || id.y >= _TexHeight)
+    if (id.x >= (uint)_TexWidth || id.y >= (uint)_TexHeight)
         return;
         
     float2 uv = (float2(id.x, id.y) + 0.5) / float2(_TexWidth, _TexHeight);
@@ -51,7 +50,8 @@ void CSMain(uint3 id : SV_DispatchThreadID)
     bool shouldClip = (depth <= 0.001 || depth >= 0.999);
     
     float linearDepth = CalculateLinearDepth(depth);
-    linearDepth -= 0.001;
+
+    linearDepth -= 0.001; // Avoid z-fighting
     
     float2 ndc = uv * 2.0 - 1.0;
     
@@ -61,17 +61,14 @@ void CSMain(uint3 id : SV_DispatchThreadID)
     camPos.z = linearDepth;
     camPos.w = 1.0;
     
-    float4 worldPos4 = mul(_DepthCamMatrix, camPos);
-    float3 worldPos = worldPos4.xyz / worldPos4.w;
-    
-    uint valid = 1;
+    bool valid = 1;
     if (shouldClip)
     {
         valid = 0;
     }
     else
     {
-        if (id.x < _TexWidth - 1)
+        if (id.x < (uint)_TexWidth - 1)
         {
             float depthR = _DepthTex.Load(int3(id.x + 1, id.y, 0));
             float linearDepthR = CalculateLinearDepth(depthR);
@@ -79,7 +76,7 @@ void CSMain(uint3 id : SV_DispatchThreadID)
             if (abs(linearDepth - linearDepthR) > _DepthContinuityThreshold)
                 valid = 0;
         }
-        if (id.y < _TexHeight - 1)
+        if (id.y < (uint)_TexHeight - 1)
         {
             float depthB = _DepthTex.Load(int3(id.x, id.y + 1, 0));
             float linearDepthB = CalculateLinearDepth(depthB);
@@ -93,7 +90,6 @@ void CSMain(uint3 id : SV_DispatchThreadID)
         depth = 1 - depth;
 
     uint index = id.y * _TexWidth + id.x;
-    vertexBuffer[index].worldPos = worldPos;
-    vertexBuffer[index].depth = depth;
-    vertexBuffer[index].valid = valid;
+    vertexBuffer[index].position = camPos.xyz;
+    vertexBuffer[index].shaderParams = float2(depth, valid);
 }
