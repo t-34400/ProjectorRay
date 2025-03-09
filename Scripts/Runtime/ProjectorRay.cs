@@ -85,6 +85,22 @@ namespace ProjectorRay
                 depthTexture.Release();
         }
 
+#if UNITY_EDITOR
+        void OnDrawGizmosSelected()
+        {
+            var originalColor = Gizmos.color;
+            var originalMatrix = Gizmos.matrix;
+
+            Gizmos.color = new Color(1, 1, 0, 0.75F);
+            Gizmos.matrix = transform.localToWorldMatrix;
+            depthCamAspect = (float)texWidth / texHeight;
+            Gizmos.DrawFrustum(Vector3.zero, depthCamFoV, depthCamFar, depthCamNear, depthCamAspect);
+
+            Gizmos.color = originalColor;
+            Gizmos.matrix = originalMatrix;
+        }
+#endif
+
         static (Camera, RenderTexture) CreateDepthCamera(GameObject gameObject, int texWidth, int texHeight, float near, float far, float fov, LayerMask layerMask)
         {
             var depthCamera = gameObject.AddComponent<Camera>();
