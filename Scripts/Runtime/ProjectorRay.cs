@@ -5,7 +5,7 @@ using UnityEngine.Rendering;
 
 namespace ProjectorRay
 {
-    class ComputeVertexGenerator : MonoBehaviour
+    class ProjectorRay : MonoBehaviour
     {
         [Header("Depth Camera")]
         [SerializeField] private ComputeShader computeShader = default!;
