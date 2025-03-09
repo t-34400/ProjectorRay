@@ -14,13 +14,13 @@ namespace ProjectorRay
         [SerializeField] private float depthCamNear = 0.1f;
         [SerializeField] private float depthCamFar = 1f;
         [SerializeField] private float depthCamFoV = 60f;
-        [SerializeField] private float depthCamAspect = 1.0f; 
         [SerializeField] private LayerMask layerMask = Physics.DefaultRaycastLayers;
         [Header("Rendering")]
         [SerializeField] private Material renderMaterial = default!;
         [SerializeField] private float depthContinuityThreshold = 0.1f;
         [SerializeField] private float depthFactor = 0.5f;
 
+        private float depthCamAspect = 1.0f; 
 
         private Camera? depthCamera;
         private RenderTexture? depthTexture;
