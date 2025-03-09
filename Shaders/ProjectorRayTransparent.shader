@@ -3,6 +3,7 @@ Shader "Custom/ProjectorRayRenderTransparent"
     Properties
     {
         _ProjectionTex ("Projection Texture", 2D) = "white" {}
+        _DepthFactor ("Depth Transparency Factor", Range(0.0, 1.0)) = 0.5
     }
     SubShader
     {

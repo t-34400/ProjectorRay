@@ -18,8 +18,6 @@ namespace ProjectorRay
         [Header("Rendering")]
         [SerializeField] private Material renderMaterial = default!;
         [SerializeField] private float depthContinuityThreshold = 0.1f;
-        [SerializeField] private bool setDepthFactor = true;
-        [SerializeField] private float depthFactor = 0.5f;
 
         private float depthCamAspect = 1.0f; 
 
@@ -74,11 +72,6 @@ namespace ProjectorRay
             var threadGroupY = Mathf.CeilToInt(texHeight / 8f);
 
             computeShader.Dispatch(kernel, threadGroupX, threadGroupY, 1);
-
-            if (setDepthFactor)
-            {
-                renderMaterial.SetFloat("_DepthFactor", depthFactor);
-            }
         }
 
         void OnDestroy()
